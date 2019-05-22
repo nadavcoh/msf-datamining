@@ -1,3 +1,7 @@
+const fs = require('fs');
+const fastcsv = require('fast-csv');
+const R = require('ramda');
+const _ = require('underscore');
 var raid_obj;
 var details_obj;
 var lanes;
@@ -45,19 +49,28 @@ function all_lanes_length (current_lane){
 
 function myFunction() {
     console.log ("Hello World!");
-    const fs = require('fs');
-    const raid = "raid_lvl_50_v2"
+    const raid = "raid_alpha_a"
     var raid_file = fs.readFileSync("../ave/"+raid+".json","UTF8");
     raid_obj = JSON.parse(raid_file);
-    var details_file = fs.readFileSync("../m3missions/RaidMissionDetails.json","UTF8");
+    //var details_file = fs.readFileSync("../m3missions/RaidMissionDetails.json","UTF8");
+    var details_file = fs.readFileSync("../m3missions/EventRaidMissionDetails.json","UTF8");
     details_obj = JSON.parse(details_file);
+
     lanes = [];
     recurse_lanes(raid_obj.RaidDetails.startingRoomId, []);
     
     var lanes_health=lanes.map(all_lanes_total_health);
-    lanes_sorted = lanes_health.sort;
     var lanes_length=lanes.map(all_lanes_length);
     
+    var nodes_in_lanes = {};
+    lanes.forEach(function(element, index)  {
+      element.forEach(element => {
+        if (!nodes_in_lanes[element])
+          nodes_in_lanes[element] = [];
+        nodes_in_lanes[element].push (index); 
+      });
+    });
+
     var raid_map = raid_obj.RaidDetails.map;
     var rows = raid_obj.RaidDetails.rows;
     var columns = raid_obj.RaidDetails.columns;
@@ -66,7 +79,9 @@ function myFunction() {
     
       html_map+="<tr>"
       for (var row = 0; row < rows; row++){
-        html_map+="<td>";
+        html_map+="<td"
+//        if nodes_in_lanes[]
+        html_map+=">";
         var current_node=raid_map[row][column];
         if (current_node){
           html_map+= current_node;
@@ -114,13 +129,24 @@ function myFunction() {
       }
       html_map+="</tr>";
     }
-    html_map+="</table>"
-    html_map+=(JSON.stringify(lanes, null, 1)+JSON.stringify(lanes_health, null, 1)+JSON.stringify(lanes_health.sort(), null, 1)).replace(/\n/g,"<br/>");
-    html_map+=(JSON.stringify(lanes_length, null, 1)).replace(/\n/g,"<br/>");
-   fs.writeFileSync("../"+raid+"_map.html",fs.readFileSync("html_pre")+html_map+fs.readFileSync("html_post"));
+    html_map+="</table>";
+    fs.writeFileSync("../"+raid+"_map.html",fs.readFileSync("html_pre")+html_map+fs.readFileSync("html_post"));
+    
+ //   html_map+=(JSON.stringify(lanes, null, 1)+JSON.stringify(lanes_health, null, 1)+JSON.stringify(lanes_health.sort(), null, 1)).replace(/\n/g,"<br/>");
+ //   html_map+=(JSON.stringify(lanes_length, null, 1)).replace(/\n/g,"<br/>");
+    
+
+  var ws = fs.createWriteStream("../"+raid+"_lanes.csv");  
+  fastcsv
+    .write(lanes, { headers: true })
+    .pipe(ws);
   
+  var ws = fs.createWriteStream("../"+raid+"_lanes_stat.csv");  
+  fastcsv
+    .write(R.transpose([_.range(0,lanes.length),lanes_health,lanes_length]), { headers: true })
+    .pipe(ws);
     
    
   };
   myFunction();
-  
+  console.log ("Goodbye World!");
